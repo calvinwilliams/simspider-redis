@@ -18,7 +18,10 @@ extern "C" {
 
 extern char    *__SIMSPIDER_REDIS_VERSION ;
 
-_WINDLL_FUNC int BindSimspiderRedisQueueHandler( struct SimSpiderEnv *penv , char *redis_ip , long redis_port );
+#define SIMSPIDER_REDIS_REQUESTQUEUE		"SIMSPIDER_REDIS_REQUESTQUEUE"
+#define SIMSPIDER_REDIS_DONEQUEUE		"SIMSPIDER_REDIS_DONEQUEUE"
+
+_WINDLL_FUNC int BindSimspiderRedisQueueHandler( struct SimSpiderEnv *penv , char *redis_ip , long redis_port , int select_index );
 _WINDLL_FUNC void UnbindSimspiderRedisQueueHandler( struct SimSpiderEnv *penv );
 
 #ifdef __cplusplus

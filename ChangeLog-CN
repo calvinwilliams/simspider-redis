@@ -1,2 +1,6 @@
+ver 1.1.0	2015-03-28	calvin
+		* 解决了一些问题
+		* 新增示例simspider-cluster，redis队列实现的多进程+多路复用示例
+
 ver 1.0.0	2015-03-27	calvin
 		* 创建

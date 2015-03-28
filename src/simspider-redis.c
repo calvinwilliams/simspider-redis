@@ -1,5 +1,5 @@
 /*
- * simspider - Net Spider Engine
+ * simspider-redis - Web Spider With Redis
  * author	: calvin
  * email	: calvinwilliams.c@gmail.com
  *
@@ -50,7 +50,7 @@ int FinishTaskProc( struct DoneQueueUnit *pdqu )
 	return 0;
 }
 
-int simspider_redis( char *ip , long port , char *url , long max_concurrent_count )
+static int simspider_redis( char *ip , long port , char *url , long max_concurrent_count )
 {
 	struct SimSpiderEnv	*penv = NULL ;
 	int			count ;
@@ -64,7 +64,7 @@ int simspider_redis( char *ip , long port , char *url , long max_concurrent_coun
 		return 1;
 	}
 	
-	nret = BindSimspiderRedisQueueHandler( penv , ip , port ) ;
+	nret = BindSimspiderRedisQueueHandler( penv , ip , port , 0 ) ;
 	if( nret )
 	{
 		printf( "BindSimspiderRedisEnv failed[%d]\n" , nret );
@@ -72,8 +72,9 @@ int simspider_redis( char *ip , long port , char *url , long max_concurrent_coun
 		return 1;
 	}
 	
+	ResetSimSpiderEnv( penv );
+	
 	ResizeRequestQueue( penv , 10*1024*1024 );
-	SetCertificateFilename( penv , "server.crt" );
 	SetMaxConcurrentCount( penv , max_concurrent_count );
 	SetMaxRetryCount( penv , 10 );
 	
@@ -91,7 +92,7 @@ int simspider_redis( char *ip , long port , char *url , long max_concurrent_coun
 	
 	printf( "Total [%d]urls\n" , count );
 	
-	return -nret;
+	return nret;
 }
 
 static void usage()

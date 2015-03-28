@@ -8,11 +8,8 @@
 
 #include "libsimspider-redis.h"
 
-char	__SIMSPIDER_REDIS_VERSION_1_0_0[] = "1.0.0" ;
-char	*__SIMSPIDER_REDIS_VERSION = __SIMSPIDER_REDIS_VERSION_1_0_0 ;
-
-#define SIMSPIDER_REQUESTQUEUE_REDISKEY		"SIMSPIDER_REQUESTQUEUE_REDISKEY"
-#define SIMSPIDER_DONEQUEUE_REDISKEY		"SIMSPIDER_DONEQUEUE_REDISKEY"
+char	__SIMSPIDER_REDIS_VERSION_1_1_0[] = "1.1.0" ;
+char	*__SIMSPIDER_REDIS_VERSION = __SIMSPIDER_REDIS_VERSION_1_1_0 ;
 
 static funcResetRequestQueueProc ResetRequestQueueProc_REDIS ;
 int ResetRequestQueueProc_REDIS( struct SimSpiderEnv *penv )
@@ -67,7 +64,7 @@ int PushRequestQueueUnitProc_REDIS( struct SimSpiderEnv *penv , char url[SIMSPID
 	}
 	
 	memset( command , 0x00 , sizeof(command) );
-	snprintf( command , sizeof(command) , "LPUSH "SIMSPIDER_REQUESTQUEUE_REDISKEY" %s" , url );
+	snprintf( command , sizeof(command) , "LPUSH "SIMSPIDER_REDIS_REQUESTQUEUE" %s" , url );
 	reply = redisCommand( conn , command ) ;
 	if( reply && reply->type == REDIS_REPLY_INTEGER )
 	{
@@ -99,7 +96,7 @@ int PopupRequestQueueUnitProc_REDIS( struct SimSpiderEnv *penv , char url[SIMSPI
 	}
 	
 	memset( command , 0x00 , sizeof(command) );
-	snprintf( command , sizeof(command) , "RPOP "SIMSPIDER_REQUESTQUEUE_REDISKEY );
+	snprintf( command , sizeof(command) , "RPOP "SIMSPIDER_REDIS_REQUESTQUEUE );
 	reply = redisCommand( conn , command ) ;
 	if( reply && reply->type == REDIS_REPLY_STRING )
 	{
@@ -129,7 +126,7 @@ int ResetDoneQueueProc_REDIS( struct SimSpiderEnv *penv )
 	redisReply	*reply = NULL ;
 	char		command[ 1024 + 1 ] ;
 	
-	conn = (redisContext*)GetRequestQueueHandler(penv) ;
+	conn = (redisContext*)GetDoneQueueHandler(penv) ;
 	if( conn == NULL )
 	{
 		ErrorLog( __FILE__ , __LINE__ , "conn invalid" );
@@ -167,7 +164,7 @@ int QueryDoneQueueUnitProc_REDIS( struct SimSpiderEnv *penv , char url[SIMSPIDER
 	redisReply	*reply = NULL ;
 	char		command[ 1024 + 1 ] ;
 	
-	conn = (redisContext*)GetRequestQueueHandler(penv) ;
+	conn = (redisContext*)GetDoneQueueHandler(penv) ;
 	if( conn == NULL )
 	{
 		ErrorLog( __FILE__ , __LINE__ , "conn invalid" );
@@ -175,7 +172,7 @@ int QueryDoneQueueUnitProc_REDIS( struct SimSpiderEnv *penv , char url[SIMSPIDER
 	}
 	
 	memset( command , 0x00 , sizeof(command) );
-	snprintf( command , sizeof(command) , "hmget "SIMSPIDER_DONEQUEUE_REDISKEY":%s referer_url url recursive_depth retry_count status" , url );
+	snprintf( command , sizeof(command) , "HMGET "SIMSPIDER_REDIS_DONEQUEUE":%s referer_url url recursive_depth retry_count status" , url );
 	reply = redisCommand( conn , command ) ;
 	if( reply && reply->type == REDIS_REPLY_ARRAY )
 	{
@@ -237,7 +234,7 @@ int AddDoneQueueUnitProc_REDIS( struct SimSpiderEnv *penv , char *referer_url , 
 	redisReply	*reply = NULL ;
 	char		command[ 1024 + 1 ] ;
 	
-	conn = (redisContext*)GetRequestQueueHandler(penv) ;
+	conn = (redisContext*)GetDoneQueueHandler(penv) ;
 	if( conn == NULL )
 	{
 		ErrorLog( __FILE__ , __LINE__ , "conn invalid" );
@@ -245,17 +242,17 @@ int AddDoneQueueUnitProc_REDIS( struct SimSpiderEnv *penv , char *referer_url , 
 	}
 	
 	memset( command , 0x00 , sizeof(command) );
-	snprintf( command , sizeof(command) , "hsetnx "SIMSPIDER_DONEQUEUE_REDISKEY":%s url %s" , url , url );
+	snprintf( command , sizeof(command) , "HSETNX "SIMSPIDER_REDIS_DONEQUEUE":%s url %s" , url , url );
 	reply = redisCommand( conn , command ) ;
 	if( reply && reply->type == REDIS_REPLY_INTEGER )
 	{
-		if( reply->integer == 1 )
+		if( reply->integer > 0 )
 		{
 			DebugLog( __FILE__ , __LINE__ , "redisCommand[%s] ok" , command );
 			freeReplyObject( reply );
 			
 			memset( command , 0x00 , sizeof(command) );
-			snprintf( command , sizeof(command) , "hmset "SIMSPIDER_DONEQUEUE_REDISKEY":%s referer_url %s url %s recursive_depth %ld retry_count 0 status 0" , url , referer_url[0]?referer_url:url , url , recursive_depth );
+			snprintf( command , sizeof(command) , "hmset "SIMSPIDER_REDIS_DONEQUEUE":%s referer_url %s url %s recursive_depth %ld retry_count 0 status 0" , url , referer_url[0]?referer_url:url , url , recursive_depth );
 			reply = redisCommand( conn , command ) ;
 			if( reply && reply->type == REDIS_REPLY_STATUS && strcasecmp( reply->str , "OK" ) == 0 )
 			{
@@ -270,6 +267,11 @@ int AddDoneQueueUnitProc_REDIS( struct SimSpiderEnv *penv , char *referer_url , 
 			}
 			
 			return SIMSPIDER_INFO_ADD_TASK_IN_DONE_QUEUE;
+		}
+		else
+		{
+			InfoLog( __FILE__ , __LINE__ , "Task[%s] existed in done queue" , url );
+			return SIMSPIDER_INFO_TASK_EXISTED_IN_DONE_QUEUE;
 		}
 	}
 	else
@@ -289,7 +291,7 @@ int UpdateDoneQueueUnitProc_REDIS( struct SimSpiderEnv *penv , struct DoneQueueU
 	redisReply	*reply = NULL ;
 	char		command[ 1024 + 1 ] ;
 	
-	conn = (redisContext*)GetRequestQueueHandler(penv) ;
+	conn = (redisContext*)GetDoneQueueHandler(penv) ;
 	if( conn == NULL )
 	{
 		ErrorLog( __FILE__ , __LINE__ , "conn invalid" );
@@ -297,7 +299,7 @@ int UpdateDoneQueueUnitProc_REDIS( struct SimSpiderEnv *penv , struct DoneQueueU
 	}
 	
 	memset( command , 0x00 , sizeof(command) );
-	snprintf( command , sizeof(command) , "hmset "SIMSPIDER_DONEQUEUE_REDISKEY":%s referer_url %s url %s recursive_depth %ld retry_count %ld status %d" , GetDoneQueueUnitUrl(pdqu) , GetDoneQueueUnitRefererUrl(pdqu)[0]?GetDoneQueueUnitRefererUrl(pdqu):GetDoneQueueUnitUrl(pdqu) , GetDoneQueueUnitUrl(pdqu) , GetDoneQueueUnitRecursiveDepth(pdqu) , GetDoneQueueUnitRetryCount(pdqu) , GetDoneQueueUnitStatus(pdqu) );
+	snprintf( command , sizeof(command) , "HMSET "SIMSPIDER_REDIS_DONEQUEUE":%s referer_url %s url %s recursive_depth %ld retry_count %ld status %d" , GetDoneQueueUnitUrl(pdqu) , GetDoneQueueUnitRefererUrl(pdqu)[0]?GetDoneQueueUnitRefererUrl(pdqu):GetDoneQueueUnitUrl(pdqu) , GetDoneQueueUnitUrl(pdqu) , GetDoneQueueUnitRecursiveDepth(pdqu) , GetDoneQueueUnitRetryCount(pdqu) , GetDoneQueueUnitStatus(pdqu) );
 	reply = redisCommand( conn , command ) ;
 	if( reply && reply->type == REDIS_REPLY_STATUS && strcasecmp( reply->str , "OK" ) == 0 )
 	{
@@ -314,9 +316,11 @@ int UpdateDoneQueueUnitProc_REDIS( struct SimSpiderEnv *penv , struct DoneQueueU
 	return 0;
 }
 
-int BindSimspiderRedisQueueHandler( struct SimSpiderEnv *penv , char *redis_ip , long redis_port )
+int BindSimspiderRedisQueueHandler( struct SimSpiderEnv *penv , char *redis_ip , long redis_port , int select_index )
 {
 	redisContext	*conn = NULL ;
+	redisReply	*reply = NULL ;
+	char		command[ 1024 + 1 ] ;
 	
 	conn = redisConnect( redis_ip , redis_port ) ;
 	if( conn == NULL )
@@ -327,6 +331,21 @@ int BindSimspiderRedisQueueHandler( struct SimSpiderEnv *penv , char *redis_ip ,
 	else
 	{
 		InfoLog( __FILE__ , __LINE__ , "redisConnect[%s:%d] ok" , redis_ip , redis_port );
+	}
+	
+	memset( command , 0x00 , sizeof(command) );
+	snprintf( command , sizeof(command) , "SELECT %d" , select_index );
+	reply = redisCommand( conn , command ) ;
+	if( reply && reply->type == REDIS_REPLY_STATUS && strcasecmp( reply->str , "OK" ) == 0 )
+	{
+		DebugLog( __FILE__ , __LINE__ , "redisCommand[%s] ok" , command );
+		freeReplyObject( reply );
+	}
+	else
+	{
+		ErrorLog( __FILE__ , __LINE__ , "redisCommand[%s] failed[%s][%s]" , command , conn->errstr , reply?reply->str:"" );
+		freeReplyObject( reply );
+		return -2;
 	}
 	
 	SetRequestQueueHandler( penv , (void*)conn );
