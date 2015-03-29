@@ -8,8 +8,8 @@
 
 #include "libsimspider-redis.h"
 
-char	__SIMSPIDER_REDIS_VERSION_1_1_0[] = "1.1.0" ;
-char	*__SIMSPIDER_REDIS_VERSION = __SIMSPIDER_REDIS_VERSION_1_1_0 ;
+char	__SIMSPIDER_REDIS_VERSION_1_1_1[] = "1.1.1" ;
+char	*__SIMSPIDER_REDIS_VERSION = __SIMSPIDER_REDIS_VERSION_1_1_1 ;
 
 static funcResetRequestQueueProc ResetRequestQueueProc_REDIS ;
 int ResetRequestQueueProc_REDIS( struct SimSpiderEnv *penv )
@@ -187,6 +187,10 @@ int QueryDoneQueueUnitProc_REDIS( struct SimSpiderEnv *penv , char url[SIMSPIDER
 			{
 				strncpy( GetDoneQueueUnitRefererUrl(pdqu) , reply->element[0]->str , SIMSPIDER_MAXLEN_URL-1 );
 			}
+			else
+			{
+				GetDoneQueueUnitRefererUrl(pdqu)[0] = '\0' ;
+			}
 			if( reply->element[1]->type == REDIS_REPLY_STRING )
 			{
 				strncpy( GetDoneQueueUnitUrl(pdqu) , reply->element[1]->str , SIMSPIDER_MAXLEN_URL-1 );
@@ -228,7 +232,7 @@ int QueryDoneQueueUnitProc_REDIS( struct SimSpiderEnv *penv , char url[SIMSPIDER
 }
 
 static funcAddDoneQueueUnitProc AddDoneQueueUnitProc_REDIS ;
-int AddDoneQueueUnitProc_REDIS( struct SimSpiderEnv *penv , char *referer_url , char *url , long recursive_depth , int SizeOfDoneQueueUnit )
+int AddDoneQueueUnitProc_REDIS( struct SimSpiderEnv *penv , char *referer_url , char *url , int recursive_depth , int SizeOfDoneQueueUnit )
 {
 	redisContext	*conn = NULL ;
 	redisReply	*reply = NULL ;
@@ -252,7 +256,7 @@ int AddDoneQueueUnitProc_REDIS( struct SimSpiderEnv *penv , char *referer_url , 
 			freeReplyObject( reply );
 			
 			memset( command , 0x00 , sizeof(command) );
-			snprintf( command , sizeof(command) , "hmset "SIMSPIDER_REDIS_DONEQUEUE":%s referer_url %s url %s recursive_depth %ld retry_count 0 status 0" , url , referer_url[0]?referer_url:url , url , recursive_depth );
+			snprintf( command , sizeof(command) , "hmset "SIMSPIDER_REDIS_DONEQUEUE":%s referer_url %s url %s recursive_depth %d retry_count 0 status 0" , url , referer_url[0]?referer_url:url , url , recursive_depth );
 			reply = redisCommand( conn , command ) ;
 			if( reply && reply->type == REDIS_REPLY_STATUS && strcasecmp( reply->str , "OK" ) == 0 )
 			{
@@ -299,7 +303,10 @@ int UpdateDoneQueueUnitProc_REDIS( struct SimSpiderEnv *penv , struct DoneQueueU
 	}
 	
 	memset( command , 0x00 , sizeof(command) );
-	snprintf( command , sizeof(command) , "HMSET "SIMSPIDER_REDIS_DONEQUEUE":%s referer_url %s url %s recursive_depth %ld retry_count %ld status %d" , GetDoneQueueUnitUrl(pdqu) , GetDoneQueueUnitRefererUrl(pdqu)[0]?GetDoneQueueUnitRefererUrl(pdqu):GetDoneQueueUnitUrl(pdqu) , GetDoneQueueUnitUrl(pdqu) , GetDoneQueueUnitRecursiveDepth(pdqu) , GetDoneQueueUnitRetryCount(pdqu) , GetDoneQueueUnitStatus(pdqu) );
+	if( GetDoneQueueUnitRefererUrl(pdqu)[0] )
+		snprintf( command , sizeof(command) , "HMSET "SIMSPIDER_REDIS_DONEQUEUE":%s referer_url %s url %s recursive_depth %d retry_count %d status %d" , GetDoneQueueUnitUrl(pdqu) , GetDoneQueueUnitRefererUrl(pdqu) , GetDoneQueueUnitUrl(pdqu) , GetDoneQueueUnitRecursiveDepth(pdqu) , GetDoneQueueUnitRetryCount(pdqu) , GetDoneQueueUnitStatus(pdqu) );
+	else
+		snprintf( command , sizeof(command) , "HMSET "SIMSPIDER_REDIS_DONEQUEUE":%s url %s recursive_depth %d retry_count %d status %d" , GetDoneQueueUnitUrl(pdqu) , GetDoneQueueUnitUrl(pdqu) , GetDoneQueueUnitRecursiveDepth(pdqu) , GetDoneQueueUnitRetryCount(pdqu) , GetDoneQueueUnitStatus(pdqu) );
 	reply = redisCommand( conn , command ) ;
 	if( reply && reply->type == REDIS_REPLY_STATUS && strcasecmp( reply->str , "OK" ) == 0 )
 	{

@@ -10,8 +10,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-long		g_process_count ;
 #define MAX_PROCESS_COUNT	100
+int		g_process_count ;
 
 static int SetClusterProcessStatus( struct SimSpiderEnv *penv , int index , int finished_count )
 {
@@ -95,23 +95,12 @@ static int GetRequestQueueRemainCount( struct SimSpiderEnv *penv )
 	return request_remain_count;
 }
 
-funcRequestHeaderProc RequestHeaderProc ;
-int RequestHeaderProc( struct DoneQueueUnit *pdqu )
+funcBeginTaskProc BeginTaskProc ;
+int BeginTaskProc( struct DoneQueueUnit *pdqu )
 {
-	struct curl_slist	*curl_header_list = NULL ;
-	
 	int			*p_index = NULL ;
 	
 	int			nret = 0 ;
-	
-	curl_header_list = GetCurlHeadListPtr( pdqu ) ;
-	curl_header_list = curl_slist_append( curl_header_list , "User-Agent: Mozilla/5.0(Windows NT 6.1; WOW64; rv:34.0 ) Gecko/20100101 Firefox/34.0" ) ;
-	if( curl_header_list == NULL )
-	{
-		ErrorLog( __FILE__ , __LINE__ , "curl_slist_append failed" );
-		return SIMSPIDER_ERROR_FUNCPROC_INTERRUPT;
-	}
-	FreeCurlHeadList1Later( pdqu , curl_header_list );
 	
 	p_index = GetSimSpiderPublicData( GetSimSpiderEnv(pdqu) ) ;
 	nret = SetClusterProcessStatus( GetSimSpiderEnv(pdqu) , (*p_index) , 1 );
@@ -124,6 +113,23 @@ int RequestHeaderProc( struct DoneQueueUnit *pdqu )
 	{
 		DebugLog( __FILE__ , __LINE__ , "SetClusterProcessStatus ok" );
 	}
+	
+	return 0;
+}
+
+funcRequestHeaderProc RequestHeaderProc ;
+int RequestHeaderProc( struct DoneQueueUnit *pdqu )
+{
+	struct curl_slist	*curl_header_list = NULL ;
+	
+	curl_header_list = GetCurlHeadListPtr( pdqu ) ;
+	curl_header_list = curl_slist_append( curl_header_list , "User-Agent: Mozilla/5.0(Windows NT 6.1; WOW64; rv:34.0 ) Gecko/20100101 Firefox/34.0" ) ;
+	if( curl_header_list == NULL )
+	{
+		ErrorLog( __FILE__ , __LINE__ , "curl_slist_append failed" );
+		return SIMSPIDER_ERROR_FUNCPROC_INTERRUPT;
+	}
+	FreeCurlHeadList1Later( pdqu , curl_header_list );
 	
 	return 0;
 }
@@ -142,13 +148,12 @@ int ResponseBodyProc( struct DoneQueueUnit *pdqu )
 funcFinishTaskProc FinishTaskProc ;
 int FinishTaskProc( struct DoneQueueUnit *pdqu )
 {
-	printf( ">>> [%3d] [%2ld] [%2ld] [%s] [%s]\n" , GetDoneQueueUnitStatus(pdqu) , GetDoneQueueUnitRecursiveDepth(pdqu) , GetDoneQueueUnitRetryCount(pdqu)
-		 , GetDoneQueueUnitRefererUrl(pdqu) , GetDoneQueueUnitUrl(pdqu) );
+	printf( ">>> [%3d] [%2d] [%2d] [%s] [%s]\n" , GetDoneQueueUnitStatus(pdqu) , GetDoneQueueUnitRecursiveDepth(pdqu) , GetDoneQueueUnitRetryCount(pdqu) , GetDoneQueueUnitRefererUrl(pdqu) , GetDoneQueueUnitUrl(pdqu) );
 	
 	return 0;
 }
 
-static int simspider_redis( int index_myself , char *ip , long port , char *url , long max_concurrent_count )
+static int simspider_redis( int index_myself , char *ip , long port , char *url , int max_concurrent_count )
 {
 	struct SimSpiderEnv	*penv = NULL ;
 	
@@ -177,6 +182,7 @@ static int simspider_redis( int index_myself , char *ip , long port , char *url 
 	SetMaxRetryCount( penv , 10 );
 	
 	SetSimSpiderPublicData( penv , & index_myself );
+	SetBeginTaskProc( penv , & BeginTaskProc );
 	SetRequestHeaderProc( penv , & RequestHeaderProc );
 	SetResponseBodyProc( penv , & ResponseBodyProc );
 	SetFinishTaskProc( penv , & FinishTaskProc );
@@ -248,7 +254,7 @@ static int simspider_redis( int index_myself , char *ip , long port , char *url 
 	return nret;
 }
 
-static int simspider_cluster( char *ip , long port , char *url , long process_count , long max_concurrent_count )
+static int simspider_cluster( char *ip , long port , char *url , int process_count , int max_concurrent_count )
 {
 	struct SimSpiderEnv	*penv = NULL ;
 	
