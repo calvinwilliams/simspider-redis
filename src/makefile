@@ -15,22 +15,23 @@ c_FILE2		=	\
 
 ###### 目标文件、安装目录配置区
 LIB		=	libsimspider-redis.so
-LIBINST		=	/usr/local/lib
+LIBINST		=	$(HOME)/lib
 BIN		=	simspider-redis
-BININST		=	/usr/local/bin
+BININST		=	$(HOME)/bin
 HDER		=	libsimspider-redis.h
-HDERINST	=	/usr/local/include/simspider-redis
+HDERINST	=	$(HOME)/include/simspider-redis
 
 ###### 编译选项
 CFLAGS		=	-I. \
 			-I/usr/include \
-			-I/usr/local/include/simspider \
+			-I$(HOME)/include/simspider \
 			-I/usr/local/include/hiredis \
 
 ###### 链接选项
 LFLAGS		=	-L. \
-			-L/usr/local/lib \
+			-L$(HOME)/lib \
 			-lsimspider \
+			-L/usr/local/lib \
 			-lhiredis \
 			-L/usr/lib \
 			-lcurl \

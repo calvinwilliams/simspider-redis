@@ -16,15 +16,16 @@ BIN		=	simspider-cluster
 ###### 编译选项
 CFLAGS		=	-I. \
 			-I/usr/include \
-			-I/usr/local/include/simspider \
-			-I/usr/local/include/simspider-redis \
+			-I$(HOME)/include/simspider \
+			-I$(HOME)/include/simspider-redis \
 			-I/usr/local/include/hiredis \
 
 ###### 链接选项
 LFLAGS		=	-L. \
-			-L/usr/local/lib \
+			-L$(HOME)/lib \
 			-lsimspider \
 			-lsimspider-redis \
+			-L/usr/local/lib \
 			-lhiredis \
 			-L/usr/lib \
 			-lcurl \
