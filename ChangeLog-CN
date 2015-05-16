@@ -1,5 +1,6 @@
 ver 1.1.2	2015-04-09	calvin
 		* 调整随着libsimspider V2.6.5
+		* 调整了makefile*
 
 ver 1.1.1	2015-03-29	calvin
 		* 调整随着libsimspider V2.6.3

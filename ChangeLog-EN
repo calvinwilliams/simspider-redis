@@ -1,5 +1,6 @@
 ver 1.1.2	2015-04-09	calvin
 		* Adjust with libsimspider V2.6.5
+		* Adjust makefile*
 
 ver 1 1.1	2015-03-29	calvin
 		* Adjust with libsimspider V2.6.3
@@ -9,4 +10,4 @@ ver 1.1.0	2015-03-28	calvin
 		* Add demo simspider-cluster , demo for Multi-Processes+Multiplexing-IO with redis queue
 
 ver 1.0.0	2015-03-27	calvin
-		* create
+		* Create
